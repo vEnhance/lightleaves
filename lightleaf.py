@@ -56,8 +56,11 @@ class LightLeaf():
 			start = e[1] #start
 			end = e[2] #end
 			diff = end-start
-			out += "draw(%(pic)s, (%(start)d,0)--(%(start)d,h/2)..((%(start)d+%(end)d)/2.0,h*%(diff)d)..(%(end)d,h/2)--(%(end)d,0), %(pen)s);" % \
-			{'pic' : pic, 'start': start, 'end': end, 'diff': diff, 'pen': pen}
+			out += "draw(%(pic)s,\
+				(%(start)d,0)--(%(start)d,h/2)..\
+				((%(start)d+%(end)d)/2.0,h*%(diff)d)\
+				..(%(end)d,h/2)--(%(end)d,0), %(pen)s);" \
+				% {'pic' : pic, 'start': start, 'end': end, 'diff': diff, 'pen': pen}
 			out += "\n"
 		for s in self.stubs:
 			out += "draw(%s, (%d,0)--(%d,h), %s);" %(pic, s[1],s[1],s[0])
