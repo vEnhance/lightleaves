@@ -56,25 +56,24 @@ class LightLeaf():
 			start = e[1] #start
 			end = e[2] #end
 			diff = end-start
-			out += "draw(%(pic)s,\
-				(%(start)d,0)--(%(start)d,h/2)..\
-				((%(start)d+%(end)d)/2.0,h*%(diff)d)\
-				..(%(end)d,h/2)--(%(end)d,0), %(pen)s);" \
+			out += "draw(%(pic)s, (%(start)d,0)--(%(start)d,h/2)..((%(start)d+%(end)d)/2.0,h*%(diff)d)..(%(end)d,h/2)--(%(end)d,0), %(pen)s);\n" \
 				% {'pic' : pic, 'start': start, 'end': end, 'diff': diff, 'pen': pen}
-			out += "\n"
-		for s in self.stubs:
-			out += "draw(%s, (%d,0)--(%d,h), %s);" %(pic, s[1],s[1],s[0])
-			out += "dot(%s, (%d,h), %s);" %(pic, s[1],s[0])
-			out += "\n"
+		for x in self.stubs:
+			out += "draw(%s, (%d,0)--(%d,h), %s);\n" %(pic, x[1],x[1],x[0])
+			out += "dot(%s, (%d,h), %s);\n" %(pic, x[1],x[0])
 		for x in self.nodes_open:
-			out += "draw(%s,(%d,0)--(%d,%d*h), %s);" %(pic, x[1], x[1], max_height + 1, x[0])
-			out += "\n"
+			out += "draw(%s,(%d,0)--(%d,%d*h), %s);\n" %(pic, x[1], x[1], max_height + 1, x[0])
+		starting_points = [e[1] for e in self.edges] + [x[1] for x in self.nodes_open]
+		ending_points = [e[2] for e in self.edges] 
+		for x in starting_points:
+			if x in ending_points:
+				out += "dot(%s, (%d, h/2), %s);\n" %(pic, x, self.letters[x])
 		return out
 	def drawLabels(self, pic = "currentpicture"):
 		out = ""
 		for i in xrange(len(self.bits)):
-			out += "label(%s, \"$%s$\", (%d,-h));\n" %(pic, self.bits[i], i)
-			out += "label(%s, \"$%s$\", (%d,-1.5*h));\n" %(pic, self.letters[i], i)
+			out += "label(%s, \"%s\", (%d,-1.5h), dir(90));\n" %(pic, self.bits[i], i)
+			out += "label(%s, \"%s\", (%d,-0.8*h), dir(90));\n" %(pic, self.letters[i], i)
 		return out
 	def drawAll(self, pic = "currentpicture"):
 		out = ""
