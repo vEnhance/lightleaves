@@ -1,3 +1,4 @@
 res_*/*
 data.in
 .eps
+*.pyc
