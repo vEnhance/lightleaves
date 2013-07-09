@@ -1,7 +1,7 @@
-#import sys
 from lightleaf import LightLeaf
 from sage.all import QQ, factor, expand
 import copy
+import sys
 
 coeff_x, coeff_y, alpha_s, alpha_t = QQ['x,y,s,t'].gens()
 
@@ -151,7 +151,7 @@ class Pocket:
 
 
 # Get input {{{1
-f = open("data.in", "r")
+f = sys.stdin
 letters = f.readline().strip()
 n = len(letters)
 bit1 = f.readline().strip()
