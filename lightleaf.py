@@ -3,7 +3,7 @@ import sys
 
 class LightLeaf():
 	def __init__(self, bits, letters):
-		assert len(bits) == len(letters), "wef"
+		assert len(bits) == len(letters), "bad length"
 		n = len(bits)
 		self.bits = bits
 		self.letters = letters
