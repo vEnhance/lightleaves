@@ -1,5 +1,23 @@
 #import sys
 from lightleaf import LightLeaf
+from sage.all import QQ, factor, expand
+
+coeff_x, coeff_y, alpha_s, alpha_t = QQ['x,y,s,t'].gens()
+
+def prod(items):
+	result = 1
+	for i in items: result *= i
+	return result
+
+def getDirection(u,v):
+	if u > v: u,v = v,u
+	return 1 if v == u.up else 0
+
+def divides(f, g):
+	'''Returns f | g'''
+	return (f in [ex[0] for ex in list(factor(g))])
+	
+
 
 class Vertex:
 	def __init__(self, i):
@@ -17,10 +35,6 @@ class Vertex:
 	def __gt__(self, other):
 		return self.name > other.name
 
-def get_direction(u,v):
-	if u > v: u,v = v,u
-	return 1 if v == u.up else 0
-
 class Component:
 	def __init__(self, number, start):
 		self.name = number
@@ -28,6 +42,9 @@ class Component:
 		self.pockets = []
 	def __repr__(self):
 		return "c_%s = %s" %(self.name, self.breakpoints)
+	@property
+	def color(self):
+		return letters[self.breakpoints[0].name]
 	def addBreakpoint(self, vertex):
 		self.breakpoints.append(vertex)
 		self.breakpoints.sort()
@@ -39,8 +56,16 @@ class Component:
 				end = self.breakpoints[i+1],
 				parent = self)
 				)
+	def evaluate(self):
+		if len(self.pockets) == 0:
+			return alpha_s if self.color == 's' else alpha_t # barbell
+		else:
+			return prod([pocket.evaluate() for pocket in self.pockets])
+
+
 
 class Pocket:
+	attached = False # attached to some other thing
 	def __init__(self, start, end, parent):
 		self.start = start
 		self.end = end
@@ -48,6 +73,9 @@ class Pocket:
 		self.contents = []
 	def __repr__(self):
 		return "(%s, %s) in c_%s" %(self.start, self.end, self.parent.name)
+	@property
+	def color(self):
+		return self.parent.color
 	def feed(self, c):
 		for component in self.contents:
 			for pocket in component.pockets:
@@ -55,7 +83,14 @@ class Pocket:
 					pocket.feed(c)
 					return
 		self.contents.append(c)
-
+	def evaluate(self):
+		others = prod([thing.evaluate() for thing in self.contents])
+		if others == 0: return 0
+		poly = expand(factor(others)) # expand(factor(...)) casts to polynomial
+		result = 0
+		for coeff, monomial in list(poly):
+			result += coeff * self.breakPolynomial(monomial)
+		return result
 	def contains(self, component):
 		# Returns True if component is inside said thing
 		# Sanity checks
@@ -74,7 +109,7 @@ class Pocket:
 		switchpoints = [start] # points where direction changes
 		for i in range(1, len(checkpoints)-1):
 			v = checkpoints[i]
-			if get_direction(checkpoints[i-1], v) != get_direction(v, checkpoints[i+1]):
+			if getDirection(checkpoints[i-1], v) != getDirection(v, checkpoints[i+1]):
 				switchpoints.append(v)
 		switchpoints.append(end)
 		assert len(switchpoints) % 2 == 0
@@ -82,6 +117,28 @@ class Pocket:
 		for i in range(0, len(switchpoints)-1): 
 			if switchpoints[i] > target:
 				return (i % 2 == 1)
+
+	def breakPolynomial(self, monomial):
+		'''Returns the result of breaking a monomial out of a loop with some color'''
+		if self.color == 's': 
+			same = alpha_s
+			diff = alpha_t
+			coeff = coeff_y
+		else: 
+			same = alpha_t
+			diff = alpha_s
+			coeff = coeff_x
+
+		# If barbell of same color
+		if divides(same, monomial):
+			if self.attached: return 2 * monomial/same - same * self.breakPolynomial(monomial / same)
+			else: return 2 * monomial - same * self.breakPolynomial(monomial / same)
+		elif divides(diff, monomial):
+			if self.attached:
+				return (-coeff) * monomial / diff + (diff + coeff * same) * self.breakPolynomial(monomial / diff)
+			else:
+				return (-coeff) * monomial / diff * same + (diff + coeff * same) * self.breakPolynomial(monomial / diff)
+		return 0
 
 
 # Get input {{{1
@@ -101,10 +158,6 @@ if leaf1.top != leaf2.top:
 	print "INCOMPATIBLE"
 	exit()
 
-# Find out where the top is divided
-# If I'm right, shouldn't matter whether leaf1 or leaf2 is used
-dividers = [x[1] for x in leaf1.nodes_open]
-assert sum([x[1] for x in leaf2.nodes_open]) == sum(dividers), "you suck at life"
 # }}}1
 # Initialize vertices and edges {{{1
 vertices = [Vertex(i) for i in range(n)]
@@ -114,6 +167,9 @@ for e in leaf1.edges:
 for e in leaf2.edges:
 	a,b = sorted(e[1:3])
 	vertices[a].down = vertices[b]
+# Find out where the top is divided
+# If I'm right, shouldn't matter whether leaf1 or leaf2 is used
+dividers = [vertices[x[1]] for x in leaf1.nodes_open]
 # }}}1
 # Determines connected components and cycles {{{1
 
@@ -154,15 +210,21 @@ class Diagram(Pocket):
 		return str(self.contents)
 	def contains(self, component):
 		return True
+	def evaluate(self):
+		return prod([thing.evaluate() for thing in self.contents])
 universe = Diagram() # temp pointer
 for c in components:
 	universe.feed(c)
-del universe
 # }}}1
+# Mark certain things as attached {{{1
+for c in components:
+	for p in c.pockets[:-1]:
+		p.attached = True
+	if c.breakpoints[-1] in dividers:
+		c.pockets[-1].attached = True
+
+# }}}
 
 if __name__ == "__main__":
-	print components[0].pockets[0].contains(components[1])
-	for comp in components:
-		for p in comp.pockets:
-			print p, p.contents
+	print universe.evaluate()
 # vim: fdm=marker
