@@ -1,6 +1,7 @@
 #import sys
 from lightleaf import LightLeaf
 from sage.all import QQ, factor, expand
+import copy
 
 coeff_x, coeff_y, alpha_s, alpha_t = QQ['x,y,s,t'].gens()
 
@@ -17,6 +18,17 @@ def divides(f, g):
 	'''Returns f | g'''
 	return (f in [ex[0] for ex in list(factor(g))])
 	
+def getVars(color):
+	if color == 's': 
+		same = alpha_s
+		diff = alpha_t
+		coeff = coeff_y
+	else: 
+		same = alpha_t
+		diff = alpha_s
+		coeff = coeff_x
+	return same, diff, coeff
+
 
 
 class Vertex:
@@ -27,6 +39,9 @@ class Vertex:
 	up = None
 	down = None
 	component = None
+	@property
+	def color(self):
+		return letters[self.name]
 	def __eq__(self, other):
 		if other is None: return False
 		return self.name == other.name
@@ -84,11 +99,12 @@ class Pocket:
 					return
 		self.contents.append(c)
 	def evaluate(self):
-		others = prod([thing.evaluate() for thing in self.contents])
-		if others == 0: return 0
-		poly = expand(factor(others)) # expand(factor(...)) casts to polynomial
+		if len(self.contents) == 0: return 0
+		contents_expr = prod([thing.evaluate() for thing in self.contents])
+		if contents_expr == 0: return 0
+		contents_poly = expand(factor(contents_expr)) # expand(factor(...)) casts to polynomial
 		result = 0
-		for coeff, monomial in list(poly):
+		for coeff, monomial in list(contents_poly):
 			result += coeff * self.breakPolynomial(monomial)
 		return result
 	def contains(self, component):
@@ -120,14 +136,7 @@ class Pocket:
 
 	def breakPolynomial(self, monomial):
 		'''Returns the result of breaking a monomial out of a loop with some color'''
-		if self.color == 's': 
-			same = alpha_s
-			diff = alpha_t
-			coeff = coeff_y
-		else: 
-			same = alpha_t
-			diff = alpha_s
-			coeff = coeff_x
+		same, diff, coeff = getVars(self.color)
 
 		# If barbell of same color
 		if divides(same, monomial):
@@ -176,7 +185,6 @@ dividers = [vertices[x[1]] for x in leaf1.nodes_open]
 # Connected components
 def infiltrate(v, c):
 	# Colors everything connected to v with color c
-	# returns True if a cycle is detected and False otherwise
 	#if v is None: return
 	assert type(v) != type(0), "fix your types"
 	if v.component == c: # Cycle detected, remember and quit
@@ -192,9 +200,10 @@ num_components = 0
 components = []
 for v in vertices:
 	if v.component is not None: continue # already done
+	if v.up is None and v.down is None and v in dividers: continue # this is a straight line
 	new_component = Component(num_components, v)
-	components.append(new_component)
 	infiltrate(v, new_component) # flood fill
+	components.append(new_component)
 	new_component.makePockets() # construct the pockets for this component
 	num_components += 1
 
@@ -224,7 +233,27 @@ for c in components:
 		c.pockets[-1].attached = True
 
 # }}}
+# Split into regions by dividers and evaluate each region {{{1
+final_result = 1
+top_level_components = copy.copy(universe.contents)
+for d in reversed(dividers):
+	# Evaluate stuff in the region specified by the divider
+	for c in top_level_components:
+		if c.breakpoints[0] > d:
+			final_result *= c.evaluate()
+			top_level_components.remove(c)
+	# Push it through
+	if final_result != 0:
+		if d.color == 's':
+			final_result = final_result.subs(s = -alpha_s, t = alpha_t + coeff_x * alpha_s)
+		else:
+			final_result = final_result.subs(t = -alpha_t, s = alpha_s + coeff_y * alpha_t)
+	else: break
+	divider_color = 't' if d.color == 's' else 't' # switch divider color
+else:
+	final_result *= prod([c.evaluate() for c in top_level_components]) # the rest of the components
+# }}}
 
 if __name__ == "__main__":
-	print universe.evaluate()
+	print final_result
 # vim: fdm=marker
