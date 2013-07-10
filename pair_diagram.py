@@ -15,3 +15,5 @@ print >>out, "picture two;"
 print >>out, diag2.drawLines("two")
 print >>out, "add(one); add(reflect((0,0),(1,0))*two);"
 print >>out, "draw((-1,0)--(%d,0));" %n
+
+from compute import evaluateForm

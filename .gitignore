@@ -2,3 +2,5 @@ res_*/*
 data.in
 .eps
 *.pyc
+texput.*
+out.*

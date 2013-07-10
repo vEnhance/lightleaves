@@ -158,22 +158,14 @@ class Universe(Pocket):
 	def evaluate(self):
 		return prod([thing.evaluate() for thing in self.contents])
 
-def evaluateForm(letters, bit1, bit2):
-	# Get input {{{1
+def evaluateForm(leaf1, leaf2):
+	letters = leaf1.letters
 	n = len(letters)
-	assert len(bit1) == n, "bad length"
-	assert len(bit2) == n, "bad length"
-
-	# Get lightleaf data
-	leaf1 = LightLeaf(bit1, letters)
-	leaf2 = LightLeaf(bit2, letters)
-
 	if leaf1.top != leaf2.top:
 		return "INCOMPATIBLE"
-
-	# }}}1
 	# Initialize vertices and edges {{{1
 	vertices = [Vertex(i, letters[i]) for i in range(n)]
+	# Edges are directed a -> b with a < b
 	for e in leaf1.edges:
 		a,b = sorted(e[1:3])
 		vertices[a].up = vertices[b]
@@ -185,9 +177,8 @@ def evaluateForm(letters, bit1, bit2):
 	dividers = [vertices[x[1]] for x in leaf1.nodes_open]
 	# }}}1
 	# Determines connected components and cycles {{{1
-
-	# Connected components
 	def infiltrate(v, c):
+		'''Called recursively to flood fill'''
 		# Colors everything connected to v with color c
 		#if v is None: return
 		assert type(v) != type(0), "fix your types"
@@ -218,7 +209,7 @@ def evaluateForm(letters, bit1, bit2):
 	for c in components:
 		universe.feed(c)
 	# }}}1
-	# Mark certain things as attached {{{1
+	# Mark certain pockets as attached {{{1
 	for c in components:
 		for p in c.pockets[:-1]:
 			p.attached = True
@@ -228,30 +219,40 @@ def evaluateForm(letters, bit1, bit2):
 	# }}}
 	# Split into regions by dividers and evaluate each region {{{1
 	final_result = 1
-	top_level_components = copy.copy(universe.contents)
+	top_level_components = copy.copy(universe.contents) # elements here are removed as evaluated
 	for d in reversed(dividers):
-		# Evaluate stuff in the region specified by the divider
+		# Evaluate polynomials in the region specified by the divider
 		for c in top_level_components:
 			if c.breakpoints[0] > d:
 				final_result *= c.evaluate()
 				top_level_components.remove(c)
-		# Push it through
-		if final_result != 0:
+		# Apply barbell forcing rules modulo lower terms
+		if final_result == 0:
+			# We're done, return 0
+			return 0
+		elif final_result == 1:
+			pass # nothing needs to be done here
+		else:
 			if d.color == 's':
 				final_result = final_result.subs(s = -alpha_s, t = alpha_t + coeff_x * alpha_s)
 			else:
 				final_result = final_result.subs(t = -alpha_t, s = alpha_s + coeff_y * alpha_t)
-		else: break
 	else:
-		final_result *= prod([c.evaluate() for c in top_level_components]) # the rest of the components
+		final_result *= prod([c.evaluate() for c in top_level_components]) # the rest of the components, left of all dividers
 	return final_result
 	# }}}
 
 if __name__ == "__main__":
 	f = sys.stdin
-	print  evaluateForm(
-		f.readline().strip(), 
-		f.readline().strip(), 
-		f.readline().strip(),
-		)
+	letters = f.readline().strip(), 
+	bit1 = f.readline().strip(), 
+	bit2 = f.readline().strip(),
+	n = len(letters)
+	assert len(bit1) == n, "bad length"
+	assert len(bit2) == n, "bad length"
+
+	# Get lightleaf data
+	leaf1 = LightLeaf(bit1, letters)
+	leaf2 = LightLeaf(bit2, letters)
+	print  evaluateForm(leaf1, leaf2)
 # vim: fdm=marker
