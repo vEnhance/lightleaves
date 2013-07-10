@@ -12,7 +12,7 @@ def prod(items):
 
 def getDirection(u,v):
 	if u > v: u,v = v,u
-	return 1 if v == u.up else 0
+	return 1 if v == u.right_up else 0
 
 def divides(f, g):
 	'''Returns f | g'''
@@ -37,9 +37,12 @@ class Vertex:
 		self.color = color
 	def __repr__(self):
 		return "v_%d" %(self.name)
-	up = None
-	down = None
+	right_up = None
+	right_down = None
+	left_up = None
+	left_down = None
 	component = None
+	seen = False # used in reverse floodfill to get left breakpoints
 	def __eq__(self, other):
 		if other is None: return False
 		return self.name == other.name
@@ -49,30 +52,33 @@ class Vertex:
 	def __ge__(self, other): return self.name >= other.name
 
 class Component:
+	attached = False
 	def __init__(self, number, start):
 		self.name = number
-		self.breakpoints = [start]
+		self.left_break = []
+		self.right_break = []
 		self.members = []
 		self.pockets = []
 	def __repr__(self):
-		return "c_%s = %s" %(self.name, self.breakpoints)
+		return "c_%s = %s" %(self.name, self.members)
 	@property
 	def color(self):
-		return self.breakpoints[0].color
-	def addBreakpoint(self, vertex):
-		self.breakpoints.append(vertex)
-		self.breakpoints.sort()
+		return self.members[0].color
+	@property
+	def num_cycles(self): return len(self.pockets)
 	def makePockets(self):
-		if len(self.breakpoints) == 1: return # is a barbell
-		for i in range(len(self.breakpoints)-1):
+		assert len(self.left_break) == len(self.right_break), str(self.left_break)+" "+str(self.right_break)
+		self.left_break.sort()
+		self.right_break.sort()
+		for i in range(len(self.left_break)):
 			self.pockets.append(Pocket(
-				start = self.breakpoints[i],
-				end = self.breakpoints[i+1],
-				parent = self)
-				)
+				start = self.left_break[i],
+				end = self.right_break[i],
+				parent = self))
 	def evaluate(self):
 		if len(self.pockets) == 0:
-			return alpha_s if self.color == 's' else alpha_t # barbell
+			if self.attached: return 1
+			else: return alpha_s if self.color == 's' else alpha_t # barbell
 		else:
 			return prod([pocket.evaluate() for pocket in self.pockets])
 
@@ -110,11 +116,12 @@ class Pocket:
 		# Returns True if component is inside said thing
 		# Sanity checks
 		if component == self: return False # reflexive check
-		if len(self.parent.breakpoints) == 1: return False # barbells never contain anything
+		# if self.num_cycles == 1: return False # barbells never contain anything
+		# TODO ^ why is that there
 
 		start = self.start
 		end = self.end
-		target = component.breakpoints[0] # a point on the component we want to test
+		target = component.members[0] # a point on the component we want to test
 
 		if target.name <= start.name or target.name >= end.name: return False # another sanity check
 
@@ -127,7 +134,7 @@ class Pocket:
 			if getDirection(checkpoints[i-1], v) != getDirection(v, checkpoints[i+1]):
 				switchpoints.append(v)
 		switchpoints.append(end)
-		assert len(switchpoints) % 2 == 0
+		# assert len(switchpoints) % 2 == 0
 		# Find the pair of switchpoints a,b such that a < target < b and look at parity
 		for i in range(0, len(switchpoints)-1): 
 			if switchpoints[i] > target:
@@ -168,53 +175,71 @@ def evaluateForm(leaf1, leaf2):
 	# Edges are directed a -> b with a < b
 	for e in leaf1.edges:
 		a,b = sorted(e[1:3])
-		vertices[a].up = vertices[b]
+		vertices[a].right_up = vertices[b]
+		vertices[b].left_up = vertices[a]
 	for e in leaf2.edges:
 		a,b = sorted(e[1:3])
-		vertices[a].down = vertices[b]
+		vertices[a].right_down = vertices[b]
+		vertices[b].left_down = vertices[a]
 	# Find out where the top is divided
 	# If I'm right, shouldn't matter whether leaf1 or leaf2 is used
 	dividers = [vertices[x[1]] for x in leaf1.nodes_open]
 	# }}}1
 	# Determines connected components and cycles {{{1
-	def infiltrate(v, c):
-		'''Called recursively to flood fill'''
+	def flood(v, c):
+		'''Called recursively to flood fill from left'''
 		# Colors everything connected to v with color c
-		#if v is None: return
 		assert type(v) != type(0), "fix your types"
 		if v.component == c: # Cycle detected, remember and quit
-			c.addBreakpoint(v)
+			c.right_break.append(v)
 			return
 		else:
 			assert v.component is None, "Houston, we have a problem."
 			v.component = c
 			c.members.append(v)
-		for i in (v.up, v.down): # i is a vertex
-			if i is None: continue
-			infiltrate(i, c)
+			for i in (v.right_up, v.right_down): # i is a vertex
+				if i is None: continue
+				flood(i,c)
+	def reverse_flood(v):
+		'''Used to compute the left breakpoints'''
+		assert type(v) != type(0), "fix your types"
+		if v.seen is True:
+			v.component.left_break.append(v)
+			return
+		else:
+			v.seen = True
+			for i in (v.left_up, v.left_down):
+				if i is None: continue
+				reverse_flood(i)
 	num_components = 0
 	components = []
 	# look for each component to flood fill
 	for v in vertices:
 		if v.component is not None: continue # already added this vertex to some component
-		if v.up is None and v.down is None and v in dividers: continue # this is a straight line
+		# if v.up is None and v.down is None and v in dividers: continue # this is a straight line
+		#TODO check ^ doesn't die now
 		new_component = Component(num_components, v)
-		infiltrate(v, new_component) # flood fill
+		flood(v, new_component) # flood fill to find components
+		new_component.members.sort()
+		reverse_flood(new_component.members[-1]) # reverse flood to get left breakpoints
 		components.append(new_component) # add to master list of components
 		new_component.makePockets() # construct the pockets for this component
 		num_components += 1
+	# get left breakpoints
+
 	# }}}1
 	# Feed things into pockets {{{1
 	universe = Universe() # temp pointer
 	for c in components:
 		universe.feed(c)
 	# }}}1
-	# Mark certain pockets as attached {{{1
+	# Mark certain pockets/components as attached to an identity line {{{1
 	for c in components:
 		for p in c.pockets[:-1]:
 			p.attached = True
-		if c.breakpoints[-1] in dividers:
-			c.pockets[-1].attached = True
+		if c.members[-1] in dividers:
+			if len(c.pockets) > 0: c.pockets[-1].attached = True
+			c.attached = True
 
 	# }}}
 	# Split into regions by dividers and evaluate each region {{{1
@@ -223,7 +248,7 @@ def evaluateForm(leaf1, leaf2):
 	for d in reversed(dividers):
 		# Evaluate polynomials in the region specified by the divider
 		for c in top_level_components:
-			if c.breakpoints[0] > d:
+			if c.members[0] > d:
 				final_result *= c.evaluate()
 				top_level_components.remove(c)
 		# Apply barbell forcing rules modulo lower terms
@@ -239,8 +264,8 @@ def evaluateForm(leaf1, leaf2):
 				final_result = final_result.subs(t = -alpha_t, s = alpha_s + coeff_y * alpha_t)
 	else:
 		final_result *= prod([c.evaluate() for c in top_level_components]) # the rest of the components, left of all dividers
-	return final_result
 	# }}}
+	return final_result
 
 if __name__ == "__main__":
 	letters = sys.stdin.readline().strip()
@@ -253,6 +278,7 @@ if __name__ == "__main__":
 	# Get lightleaf data
 	leaf1 = LightLeaf(bit1, letters)
 	leaf2 = LightLeaf(bit2, letters)
-	#print leaf1, leaf2
-	print evaluateForm(leaf1, leaf2)
+	res = evaluateForm(leaf1, leaf2)
+
+	print res
 # vim: fdm=marker

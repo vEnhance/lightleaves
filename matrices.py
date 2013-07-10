@@ -8,10 +8,7 @@ n = len(letters)
 
 def prettyEval(leaf1, leaf2):
 	'''Return the output of evaluateForm in TeX with s -> \\alpha_s, etc.'''
-	try:
-		res = str(evaluateForm(leaf1, leaf2))
-	except:
-		res = "!"
+	res = str(evaluateForm(leaf1, leaf2))
 	if str(res) == '0': return ''
 	else: return "$" + str(res).replace('s', r'\alpha_s').replace('t', r'\alpha_t').replace("*","") + "$"
 
