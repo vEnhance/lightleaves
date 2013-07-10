@@ -243,10 +243,9 @@ def evaluateForm(leaf1, leaf2):
 	# }}}
 
 if __name__ == "__main__":
-	f = sys.stdin
-	letters = f.readline().strip(), 
-	bit1 = f.readline().strip(), 
-	bit2 = f.readline().strip(),
+	letters = sys.stdin.readline().strip()
+	bit1 = sys.stdin.readline().strip() 
+	bit2 = sys.stdin.readline().strip()
 	n = len(letters)
 	assert len(bit1) == n, "bad length"
 	assert len(bit2) == n, "bad length"
@@ -254,5 +253,6 @@ if __name__ == "__main__":
 	# Get lightleaf data
 	leaf1 = LightLeaf(bit1, letters)
 	leaf2 = LightLeaf(bit2, letters)
-	print  evaluateForm(leaf1, leaf2)
+	#print leaf1, leaf2
+	print evaluateForm(leaf1, leaf2)
 # vim: fdm=marker

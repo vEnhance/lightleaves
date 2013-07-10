@@ -8,7 +8,12 @@ n = len(letters)
 
 def prettyEval(leaf1, leaf2):
 	'''Return the output of evaluateForm in TeX with s -> \\alpha_s, etc.'''
-	return "$" + str(evaluateForm(leaf1, leaf2)).replace('s', r'\alpha_s').replace('t', r'\alpha_t') + "$"
+	try:
+		res = str(evaluateForm(leaf1, leaf2))
+	except:
+		res = "!"
+	if str(res) == '0': return ''
+	else: return "$" + str(res).replace('s', r'\alpha_s').replace('t', r'\alpha_t').replace("*","") + "$"
 
 # Compute all bit sequences
 all_maps_by_top = {} # sorted by top_panel
@@ -18,7 +23,8 @@ for bit_seq in itertools.product("01", repeat=n):
 	all_maps_by_top[m.top] = all_maps_by_top.get(m.top, []) + [m]
 
 print r"""\documentclass[11pt,landscape]{scrartcl}
-\usepackage{evan}
+\usepackage[nosetup]{evan}
+\addtolength{\textheight}{5em}
 \begin{document}
 \title{""" + letters + r"""}
 \author{RSI 2013}
@@ -27,10 +33,7 @@ print r"""\documentclass[11pt,landscape]{scrartcl}
 """
 
 for top, maps in all_maps_by_top.iteritems():
-	if top != "":
-		print r"\section{" + top + "}" # create a section for this top
-	else:
-		print r"\section{No Top}"
+	print r"\section{" + letters + r" $\to$ " + (top if top != "" else r"$\varnothing$") + "}" # create a section for this top
 	print r"\begin{tabular}" + "{r|" + "l" * len(maps) + "}" # start the table
 	print '-- &',
 	print ' & '.join([m.bits for m in maps]),
@@ -40,5 +43,6 @@ for top, maps in all_maps_by_top.iteritems():
 		print " & ".join([prettyEval(a,b) for b in maps]),
 		print r"\\"
 	print r"\end{tabular}"
+	print
 
 print r"\end{document}"
