@@ -6,6 +6,7 @@ import sys
 coeff_x, coeff_y, alpha_s, alpha_t = QQ['x,y,s,t'].gens()
 
 def prod(items):
+	'''Returns the product of a bunch of items'''
 	result = 1
 	for i in items: result *= i
 	return result
@@ -52,7 +53,10 @@ class Vertex:
 	def __ge__(self, other): return self.name >= other.name
 
 class Component:
-	attached = False
+	is_divider = False
+	divider_tip = None
+	divider_base = None
+	
 	def __init__(self, number, start):
 		self.name = number
 		self.left_break = []
@@ -76,19 +80,36 @@ class Component:
 				end = self.right_break[i],
 				parent = self))
 	def evaluate(self):
-		if len(self.pockets) == 0:
-			if self.attached: return 1
-			else: return alpha_s if self.color == 's' else alpha_t # barbell
+		if len(self.pockets) == 0: # is a barbell
+			if self.is_divider: return 1
+			else: return alpha_s if self.color == 's' else alpha_t
 		else:
 			return prod([pocket.evaluate() for pocket in self.pockets])
 
+	def has_on_right(self, component):
+		'''Returns True if the component is strictly to the right of this divider.  Throws an AssertionError if self.is_divider is False'''
+		assert self.is_divider, str(self) + " isn't a divider"
 
+		# Sanity checks / edge cases
+		if component == self: return False # reflexive check
+		target = component.members[0] # arbitrary point on target we wish to check
+		if self.divider_tip == self.divider_base: return target > self.divider_tip # if the divider is just a straight line, yay
+
+		# count the number of arcs covering
+		num_covers_from_heaven = 0
+		for v in self.members:
+			assert v != target, "What have you done?"
+			if v > target: break # all future arcs too far right
+			if v.right_up > target: num_covers_from_heaven += 1
+		
+		# do work
+		res = (0 if self.divider_tip > self.divider_base else 1) + num_covers_from_heaven # even = left, odd = right
+		return (res % 2 == 1)
 
 class Pocket:
 	attached = False # attached to some other thing
-	def __init__(self, start, end, parent):
-		self.start = start
-		self.end = end
+	def __init__(self, vertices, parent):
+		self.vertices = []
 		self.parent = parent # should be a component
 		self.contents = []
 	def __repr__(self):
@@ -113,33 +134,22 @@ class Pocket:
 			result += coeff * self.breakPolynomial(monomial)
 		return result
 	def contains(self, component):
-		# Returns True if component is inside said thing
-		# Sanity checks
+		'''Returns True if the component is contained in this pocket'''
 		if component == self: return False # reflexive check
-		# if self.num_cycles == 1: return False # barbells never contain anything
-		# TODO ^ why is that there
-
-		start = self.start
-		end = self.end
 		target = component.members[0] # a point on the component we want to test
-
-		if target.name <= start.name or target.name >= end.name: return False # another sanity check
-
-		checkpoints = [v for v in self.parent.members if start <= v and v <= end] # points of the loop
-		if len(checkpoints) == 2: return True # loops are always good if the earlier sanity check returned OK
-
-		switchpoints = [start] # points where direction changes
-		for i in range(1, len(checkpoints)-1):
-			v = checkpoints[i]
-			if getDirection(checkpoints[i-1], v) != getDirection(v, checkpoints[i+1]):
-				switchpoints.append(v)
-		switchpoints.append(end)
-		# assert len(switchpoints) % 2 == 0
-		# Find the pair of switchpoints a,b such that a < target < b and look at parity
-		for i in range(0, len(switchpoints)-1): 
-			if switchpoints[i] > target:
-				return (i % 2 == 1)
-
+		if len(self.vertices) == 2: # edge case: trivial pocket
+			return target > min(self.vertices) and target < max(self.vertices)
+		else:
+			num_covers_from_heaven = 0 # number of arcs shielding it from the sky
+			num_covers_from_hell = 0 # number of arcs shielding it from below
+			for i in range(len(self.vertices)):
+				if i != len(self.vertices) - 1: a,b = sorted([self.vertices[i], self.vertices[i+1]])
+				else: a,b = sorted([self.vertices[-1], self.vertices[0]])
+				if a < target and target < b:
+					if a.right_up == b: num_covers_from_heaven += 1
+					elif a.right_down == b: num_covers_from_hell += 1
+					else: assert 0, str(a) + " " + str(b)
+			assert num_covers_from_heaven % 2 == num_covers_from_hell % 2, "well then"
 	def breakPolynomial(self, monomial):
 		'''Returns the result of breaking a monomial out of a loop with some color'''
 		same, diff, coeff = getVars(self.color)
@@ -168,11 +178,10 @@ class Universe(Pocket):
 def evaluateForm(leaf1, leaf2):
 	letters = leaf1.letters
 	n = len(letters)
-	if leaf1.top != leaf2.top:
-		return "INCOMPATIBLE"
+	if leaf1.top != leaf2.top: return "INCOMPATIBLE"
+
 	# Initialize vertices and edges {{{1
 	vertices = [Vertex(i, letters[i]) for i in range(n)]
-	# Edges are directed a -> b with a < b
 	for e in leaf1.edges:
 		a,b = sorted(e[1:3])
 		vertices[a].right_up = vertices[b]
@@ -180,11 +189,12 @@ def evaluateForm(leaf1, leaf2):
 	for e in leaf2.edges:
 		a,b = sorted(e[1:3])
 		vertices[a].right_down = vertices[b]
-		vertices[b].left_down = vertices[a]
-	# Find out where the top is divided
-	# If I'm right, shouldn't matter whether leaf1 or leaf2 is used
-	dividers = [vertices[x[1]] for x in leaf1.nodes_open]
+	vertices[b].left_down = vertices[a]
 	# }}}1
+	# Find out where the top is divided
+	dividers_top = [vertices[x[1]] for x in leaf1.nodes_open]
+	dividers_bottom = [vertices[x[1]] for x in leaf2.nodes_open]
+	assert len(dividers_top) == len(dividers_bottom), "..."
 	# Determines connected components and cycles {{{1
 	def flood(v, c):
 		'''Called recursively to flood fill from left'''
@@ -203,16 +213,27 @@ def evaluateForm(leaf1, leaf2):
 	# look for each component to flood fill
 	for v in vertices:
 		if v.component is not None: continue # already added this vertex to some component
-		# if v.up is None and v.down is None and v in dividers: continue # this is a straight line
-		#TODO check ^ doesn't die now
-		new_component = Component(num_components, v)
+
+		new_component = Component(num_components, v) 
 		flood(v, new_component) # flood fill to find components
 		new_component.members.sort()
+
 		components.append(new_component) # add to master list of components
 		new_component.makePockets() # construct the pockets for this component
 		num_components += 1
-
 	# }}}1
+	# Check if already 0 mod lower terms, otherwise get the components corresponding to each {{{1
+	dividers = []
+	for i in range(len(dividers_top)):
+		if dividers_top[i].component != dividers_bottom[i].component: return 0
+		else:
+			c = dividers_top[i].component
+			dividers.append(c)
+			c.is_divider = True
+			c.divider_tip = dividers_top[i]
+			c.divider_base = dividers_bottom[i]
+
+	# }}}
 	# Feed things into pockets {{{1
 	universe = Universe() # temp pointer
 	for c in components:
@@ -222,31 +243,26 @@ def evaluateForm(leaf1, leaf2):
 	for c in components:
 		for p in c.pockets[:-1]:
 			p.attached = True
-		if c.members[-1] in dividers:
-			if len(c.pockets) > 0: c.pockets[-1].attached = True
-			c.attached = True
-
+		if c.is_divider and len(c.pockets) > 0:
+			c.pockets[-1].attached = True
 	# }}}
 	# Split into regions by dividers and evaluate each region {{{1
 	final_result = 1
 	top_level_components = copy.copy(universe.contents) # elements here are removed as evaluated
-	for d in reversed(dividers):
-		# Evaluate polynomials in the region specified by the divider
+	for d in sorted(dividers, key = lambda d: -d.divider_tip):
+		# Evaluate polynomials to the right of the divider
 		for c in top_level_components:
-			if c.members[0] > d:
+			if d.has_on_right(c):
 				final_result *= c.evaluate()
 				top_level_components.remove(c)
 		# Apply barbell forcing rules modulo lower terms
 		if final_result == 0:
-			# We're done, return 0
-			return 0
+			return 0 # gg
 		elif final_result == 1:
-			pass # nothing needs to be done here
+			pass 
 		else:
-			if d.color == 's':
-				final_result = final_result.subs(s = -alpha_s, t = alpha_t + coeff_x * alpha_s)
-			else:
-				final_result = final_result.subs(t = -alpha_t, s = alpha_s + coeff_y * alpha_t)
+			if d.color == 's': final_result = final_result.subs(s = -alpha_s, t = alpha_t + coeff_x * alpha_s)
+			else: final_result = final_result.subs(t = -alpha_t, s = alpha_s + coeff_y * alpha_t)
 	else:
 		final_result *= prod([c.evaluate() for c in top_level_components]) # the rest of the components, left of all dividers
 	# }}}
