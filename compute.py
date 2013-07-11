@@ -36,14 +36,25 @@ class Vertex:
 	def __init__(self, i, color):
 		self.name = i
 		self.color = color
+		self.destinations = [None, None, None, None] # clockwise from left up
+		# represents the ''slots'' where neighbors might be
 	def __repr__(self):
 		return "v_%d" %(self.name)
-	#clockwise starting from right_up
-	neighbors = [None None None None] # clockwise from left up
-	#right_up = None
-	#right_down = None
-	#left_up = None
-	#left_down = None
+
+
+	@property
+	def left_up(self): return self.destinations[0]
+	@property
+	def right_up(self): return self.destinations[1]
+	@property
+	def right_down(self): return self.destinations[2]
+	@property
+	def left_down(self): return self.destinations[3]
+	@property
+	def degree(self): return len(self.neighbors)
+	@property
+	def neighbors(self): return [x for x in self.destinations if x is not None]
+
 	component = None
 	seen = False # used in reverse floodfill to get left breakpoints
 	def __eq__(self, other):
@@ -73,55 +84,78 @@ class Component:
 	@property
 	def num_cycles(self): return len(self.pockets)
 	def makePockets(self):
-		# get all edges
-		edge = []
-		for v in self.members:
-			for j in range(0,4):
-				if(v.neighbors[j] != None):
-					edge.append([v,j])
+		'''Creates in pockets a list of all planar faces of this graph'''
+		leafless_vertices = copy.copy(self.members)
+		# kill all vertices with degree 1.  RECURSIVELY!!!!
+		new_degrees = {} # v.name -> temp degree
+		for v in self.members: new_degrees[v.name] = v.degree
+		# adjust degrees for trivial pockets
+		for v in leafless_vertices:
+			u = v.destinations[1]
+			if u == v.destinations[2] and u is not None:
+				self.pockets.append(Pocket([v,u],self)) # add the trivial pocket
+				new_degrees[u.name] -= 1
+				new_degrees[v.name] -= 1
+		# kill a bunch of extraneous vertices
+		to_kill = [v for v in leafless_vertices if new_degrees[v.name] <= 1]
+		while len(to_kill) > 0:
+			for v in to_kill:
+				leafless_vertices.remove(v)
+				for u in v.neighbors:
+					new_degrees[u.name] -= 1
+			to_kill = [v for v in leafless_vertices if new_degrees[v.name] <= 1]
+		 
+		# Generate directed edges
+		edges = []
+		for v in leafless_vertices:
+			u1 = v.destinations[1] # right up
+			u2 = v.destinations[2] # right down
+			if u1 == u2 and u1 is not None: # it's a trivial pocket
+				edges.append((v,1))
+				edges.append((v,0))
+			else:
+				if u1 is not None:
+					edges.append((v,1))
+					edges.append((u1,0))
+				if u2 is not None:
+					edges.append((v,2))
+					edges.append((u2,3))
 
+		if len(leafless_vertices) == 0:
+			# is a barbell now
+			return
 	
-		#iterate through vertices
-		v = self.members[0]
-		pocketList = [v]
-		dir = 0
-		while v.neighbors[dir] !=None: # this is not the right condition
-			edge.remove([v,dir])
-			v = v.neighbors[dir]
-			if v in pocketList: # we found a cycle
-				#TODO: if its NOT the exterior cycle
-				self.pockets.append(Pocket(pocketList, self))
-				# restart
-				pocketList = []
-			else
-				pocketList.append(v)
-			switch(dir){
-				case 1:
-					dir = 3
-					break;
-				case 3:
-					dir = 1
-					break;
-			}
+		# walk always to the right
+		v_0 = leafless_vertices[0]
+		v = v_0
+		pocket_list = [v_0]
+		direction = 1 # ok since deg v >= 2 and nothing to left, so both 1 and 2 exist
+		is_first_face = True # flag
 
-			if v.neighbors[dir] == None:
-				dir = (dir - 1)%4
-			if v.neighbors[dir] == None:
-				dir = (dir - 1)%4
-			if v.neighbors[dir] == None:
-				# there is nowhere to go, pick a random edge
-				v = edge[0][0]
+		while len(edges) > 0:
+			edges.remove( (v,direction) )
+			# Walk along this directed edge
+			v = v.destinations[direction]
 
-		
-		
-		assert len(self.left_break) == len(self.right_break), str(self.left_break)+" "+str(self.right_break)
-		self.left_break.sort()
-		self.right_break.sort()
-		for i in range(len(self.left_break)):
-			self.pockets.append(Pocket(
-				start = self.left_break[i],
-				end = self.right_break[i],
-				parent = self))
+			if v in pocket_list: 
+				# we found a face!!!
+				if (not v_0 in pocket_list) or is_first_face:
+					self.pockets.append(Pocket(pocket_list, self)) # create the corresponding pocket
+				if is_first_face: is_first_face = False
+				if len(edges) == 0:
+					break # we're done, we're done, we're done!
+				v, direction = edges[0] # respawn
+				pocket_list = [v] 
+			else:
+				pocket_list.append(v)
+				# change direction
+				direction = (0,3,2,1)[direction] # this is the new "ideal" direction
+				num_tries = 0
+				while not (v, direction) in edges:
+					direction = (direction - 1) % 4
+					num_tries += 1
+					assert num_tries <= 4, v
+
 	def evaluate(self):
 		if len(self.pockets) == 0: # is a barbell
 			if self.is_divider: return 1
@@ -143,6 +177,7 @@ class Component:
 		for v in self.members:
 			assert v != target, "What have you done?"
 			if v > target: break # all future arcs too far right
+			if v.right_up is None: continue
 			if v.right_up > target: num_covers_from_heaven += 1
 		
 		# do work
@@ -152,11 +187,11 @@ class Component:
 class Pocket:
 	attached = False # attached to some other thing
 	def __init__(self, vertices, parent):
-		self.vertices = []
+		self.vertices = vertices
 		self.parent = parent # should be a component
 		self.contents = []
 	def __repr__(self):
-		return "(%s, %s) in c_%s" %(self.start, self.end, self.parent.name)
+		return "%s in c_%s" %(self.vertices, self.parent.name)
 	@property
 	def color(self):
 		return self.parent.color
@@ -186,13 +221,17 @@ class Pocket:
 			num_covers_from_heaven = 0 # number of arcs shielding it from the sky
 			num_covers_from_hell = 0 # number of arcs shielding it from below
 			for i in range(len(self.vertices)):
-				if i != len(self.vertices) - 1: a,b = sorted([self.vertices[i], self.vertices[i+1]])
-				else: a,b = sorted([self.vertices[-1], self.vertices[0]])
+				# get the pair of vertices delimited by the arc
+				if i != len(self.vertices) - 1:
+					a,b = sorted([self.vertices[i], self.vertices[i+1]])
+				else:
+					a,b = sorted([self.vertices[-1], self.vertices[0]])
 				if a < target and target < b:
 					if a.right_up == b: num_covers_from_heaven += 1
 					elif a.right_down == b: num_covers_from_hell += 1
 					else: assert 0, str(a) + " " + str(b)
 			assert num_covers_from_heaven % 2 == num_covers_from_hell % 2, "well then"
+		return (num_covers_from_heaven % 2 == 1)
 	def breakPolynomial(self, monomial):
 		'''Returns the result of breaking a monomial out of a loop with some color'''
 		same, diff, coeff = getVars(self.color)
@@ -227,12 +266,12 @@ def evaluateForm(leaf1, leaf2):
 	vertices = [Vertex(i, letters[i]) for i in range(n)]
 	for e in leaf1.edges:
 		a,b = sorted(e[1:3])
-		vertices[a].right_up = vertices[b]
-		vertices[b].left_up = vertices[a]
+		vertices[a].destinations[1] = vertices[b] # left up
+		vertices[b].destinations[0] = vertices[a] # right up
 	for e in leaf2.edges:
 		a,b = sorted(e[1:3])
-		vertices[a].right_down = vertices[b]
-	vertices[b].left_down = vertices[a]
+		vertices[a].destinations[2] = vertices[b] # right down
+		vertices[b].destinations[3] = vertices[a] # left down
 	# }}}1
 	# Find out where the top is divided
 	dividers_top = [vertices[x[1]] for x in leaf1.nodes_open]
@@ -248,22 +287,20 @@ def evaluateForm(leaf1, leaf2):
 			assert v.component is None, "Houston, we have a problem."
 			v.component = c
 			c.members.append(v)
-			for i in (v.right_up, v.right_down): # i is a vertex
-				if i is None: continue
+			for i in v.neighbors: # i is a vertex
 				flood(i,c)
 	num_components = 0
 	components = []
 	# look for each component to flood fill
 	for v in vertices:
 		if v.component is not None: continue # already added this vertex to some component
-
 		new_component = Component(num_components, v) 
 		flood(v, new_component) # flood fill to find components
-		new_component.members.sort()
-
+		new_component.members.sort() # sort the new vertices
 		components.append(new_component) # add to master list of components
 		new_component.makePockets() # construct the pockets for this component
 		num_components += 1
+
 	# }}}1
 	# Check if already 0 mod lower terms, otherwise get the components corresponding to each {{{1
 	dividers = []
@@ -292,7 +329,7 @@ def evaluateForm(leaf1, leaf2):
 	# Split into regions by dividers and evaluate each region {{{1
 	final_result = 1
 	top_level_components = copy.copy(universe.contents) # elements here are removed as evaluated
-	for d in sorted(dividers, key = lambda d: -d.divider_tip):
+	for d in sorted(dividers, key = lambda d: -d.divider_tip.name):
 		# Evaluate polynomials to the right of the divider
 		for c in top_level_components:
 			if d.has_on_right(c):
@@ -309,7 +346,7 @@ def evaluateForm(leaf1, leaf2):
 	else:
 		final_result *= prod([c.evaluate() for c in top_level_components]) # the rest of the components, left of all dividers
 	# }}}
-	return final_result
+	return final_result, components
 
 if __name__ == "__main__":
 	letters = sys.stdin.readline().strip()
@@ -322,7 +359,7 @@ if __name__ == "__main__":
 	# Get lightleaf data
 	leaf1 = LightLeaf(bit1, letters)
 	leaf2 = LightLeaf(bit2, letters)
-	res = evaluateForm(leaf1, leaf2)
+	res, components = evaluateForm(leaf1, leaf2)
 
 	print res
 # vim: fdm=marker
