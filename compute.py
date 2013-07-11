@@ -233,9 +233,7 @@ def evaluateForm(leaf1, leaf2):
 		'''Called recursively to flood fill from left'''
 		# Colors everything connected to v with color c
 		assert type(v) != type(0), "fix your types"
-		if v.component == c: # Cycle detected, remember and quit
-			c.right_break.append(v)
-			return
+		if v.component == c: return
 		else:
 			assert v.component is None, "Houston, we have a problem."
 			v.component = c
@@ -243,17 +241,6 @@ def evaluateForm(leaf1, leaf2):
 			for i in (v.right_up, v.right_down): # i is a vertex
 				if i is None: continue
 				flood(i,c)
-	def reverse_flood(v):
-		'''Used to compute the left breakpoints'''
-		assert type(v) != type(0), "fix your types"
-		if v.seen is True:
-			v.component.left_break.append(v)
-			return
-		else:
-			v.seen = True
-			for i in (v.left_up, v.left_down):
-				if i is None: continue
-				reverse_flood(i)
 	num_components = 0
 	components = []
 	# look for each component to flood fill
@@ -264,11 +251,9 @@ def evaluateForm(leaf1, leaf2):
 		new_component = Component(num_components, v)
 		flood(v, new_component) # flood fill to find components
 		new_component.members.sort()
-		reverse_flood(new_component.members[-1]) # reverse flood to get left breakpoints
 		components.append(new_component) # add to master list of components
 		new_component.makePockets() # construct the pockets for this component
 		num_components += 1
-	# get left breakpoints
 
 	# }}}1
 	# Feed things into pockets {{{1
