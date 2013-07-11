@@ -346,7 +346,7 @@ def evaluateForm(leaf1, leaf2):
 	else:
 		final_result *= prod([c.evaluate() for c in top_level_components]) # the rest of the components, left of all dividers
 	# }}}
-	return final_result, components
+	return final_result
 
 if __name__ == "__main__":
 	letters = sys.stdin.readline().strip()
@@ -359,7 +359,7 @@ if __name__ == "__main__":
 	# Get lightleaf data
 	leaf1 = LightLeaf(bit1, letters)
 	leaf2 = LightLeaf(bit2, letters)
-	res, components = evaluateForm(leaf1, leaf2)
+	res = evaluateForm(leaf1, leaf2)
 
 	print res
 # vim: fdm=marker
