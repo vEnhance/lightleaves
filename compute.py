@@ -38,10 +38,12 @@ class Vertex:
 		self.color = color
 	def __repr__(self):
 		return "v_%d" %(self.name)
-	right_up = None
-	right_down = None
-	left_up = None
-	left_down = None
+	#clockwise starting from right_up
+	neighbors = [None None None None] # clockwise from left up
+	#right_up = None
+	#right_down = None
+	#left_up = None
+	#left_down = None
 	component = None
 	seen = False # used in reverse floodfill to get left breakpoints
 	def __eq__(self, other):
@@ -71,6 +73,47 @@ class Component:
 	@property
 	def num_cycles(self): return len(self.pockets)
 	def makePockets(self):
+		# get all edges
+		edge = []
+		for v in self.members:
+			for j in range(0,4):
+				if(v.neighbors[j] != None):
+					edge.append([v,j])
+
+	
+		#iterate through vertices
+		v = self.members[0]
+		pocketList = [v]
+		dir = 0
+		while v.neighbors[dir] !=None: # this is not the right condition
+			edge.remove([v,dir])
+			v = v.neighbors[dir]
+			if v in pocketList: # we found a cycle
+				#TODO: if its NOT the exterior cycle
+				self.pockets.append(Pocket(pocketList, self))
+				# restart
+				pocketList = []
+			else
+				pocketList.append(v)
+			switch(dir){
+				case 1:
+					dir = 3
+					break;
+				case 3:
+					dir = 1
+					break;
+			}
+
+			if v.neighbors[dir] == None:
+				dir = (dir - 1)%4
+			if v.neighbors[dir] == None:
+				dir = (dir - 1)%4
+			if v.neighbors[dir] == None:
+				# there is nowhere to go, pick a random edge
+				v = edge[0][0]
+
+		
+		
 		assert len(self.left_break) == len(self.right_break), str(self.left_break)+" "+str(self.right_break)
 		self.left_break.sort()
 		self.right_break.sort()
