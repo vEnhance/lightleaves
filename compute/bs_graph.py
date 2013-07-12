@@ -88,7 +88,7 @@ class Component:
 		if component == self: return False # reflexive check
 		target = component.members[0] # arbitrary point on target we wish to check
 		if self.divider_tip == self.divider_base:
-			print "IMMED", self, component, "AS RESULT", int(target > self.divider_tip)
+			if DEBUG: print "IMMED", self, component, "AS RESULT", int(target > self.divider_tip)
 			return target > self.divider_tip # if the divider is just a straight line, yay
 
 		# count the number of arcs covering
@@ -101,7 +101,7 @@ class Component:
 		
 		# do work
 		res = (0 if self.divider_tip > target else 1) + num_covers_from_heaven # even = left, odd = right
-		print "RESOLVE", self, component, "AS RESULT", res
+		if DEBUG: print "RESOLVE", self, component, "AS RESULT", res
 		return (res % 2 == 1)
 
 class Pocket:

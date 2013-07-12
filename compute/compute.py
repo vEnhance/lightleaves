@@ -1,6 +1,7 @@
 from bs_graph import Component, Vertex, Universe
 from misc import alpha_s, alpha_t, coeff_x, coeff_y
 from misc import prod
+from misc import DEBUG
 import copy
 
 def getDirection(u,v):
@@ -66,7 +67,7 @@ def evaluateForm(leaf1, leaf2):
 			c.is_divider = True
 			c.divider_tip = dividers_top[i]
 			c.divider_base = dividers_bottom[i]
-			print "Assign", c, c.divider_tip, c.divider_base
+			if DEBUG: print "Assign", c, c.divider_tip, c.divider_base
 
 	# 
 	# Feed things into pockets 
@@ -84,8 +85,8 @@ def evaluateForm(leaf1, leaf2):
 	# Split into regions by dividers and evaluate each region 
 	final_result = 1
 	top_level_components = copy.copy(universe.contents) # elements here are removed as evaluated
-	print "TOPLEVEL", top_level_components
-	print "DIVIDERS", dividers
+	if DEBUG: print "TOPLEVEL", top_level_components
+	if DEBUG: print "DIVIDERS", dividers
 	for d in sorted(dividers, key = lambda d: -d.divider_tip.name):
 		# Evaluate polynomials to the right of the divider
 		for c in top_level_components:
