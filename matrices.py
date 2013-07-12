@@ -36,8 +36,10 @@ for top, maps in all_maps_by_top.iteritems():
 	print ' & '.join([m.bits for m in maps]),
 	print r"\\ \hline"
 	for a in maps:
-		print a, "&",
-		print " & ".join([prettyEval(a,b) for b in maps]),
+		print a
+		for b in maps:
+			print "% Computing", a, "x", b
+			print "&", prettyEval(a,b)
 		print r"\\"
 	print r"\end{tabular}"
 	print

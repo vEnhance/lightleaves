@@ -110,14 +110,14 @@ class Component:
 		for v in leafless_vertices:
 			u1 = v.destinations[1] # right up
 			u2 = v.destinations[2] # right down
-			if u1 == u2 and u1 is not None: # it's a trivial pocket
+			if u1 == u2 and u1 in leafless_vertices: # it's a trivial pocket
 				edges.append((v,1))
-				edges.append((v,0))
+				edges.append((u1,0))
 			else:
-				if u1 is not None:
+				if u1 in leafless_vertices:
 					edges.append((v,1))
 					edges.append((u1,0))
-				if u2 is not None:
+				if u2 in leafless_vertices:
 					edges.append((v,2))
 					edges.append((u2,3))
 
@@ -130,6 +130,9 @@ class Component:
 		v = v_0
 		pocket_list = [v_0]
 		direction = 1 # ok since deg v >= 2 and nothing to left, so both 1 and 2 exist
+		# in fact, to prove it...
+		assert (v,1) in edges, "nvm"
+		assert (v,2) in edges, "nvm"
 		is_first_face = True # flag
 
 		while len(edges) > 0:
@@ -154,7 +157,7 @@ class Component:
 				while not (v, direction) in edges:
 					direction = (direction - 1) % 4
 					num_tries += 1
-					assert num_tries <= 4, v
+					assert num_tries <= 4, "v: %s\nPockets: %s\nEdges: %s" %(v, self.pockets, edges)
 
 	def evaluate(self):
 		if len(self.pockets) == 0: # is a barbell
