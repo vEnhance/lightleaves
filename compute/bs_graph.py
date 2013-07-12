@@ -2,6 +2,7 @@ from sage.all import factor, expand
 from facebook import findFaces
 from misc import alpha_s, alpha_t, coeff_x, coeff_y
 from misc import prod
+from misc import DEBUG
 
 def divides(f, g):
 	'''Returns f | g'''
@@ -70,6 +71,7 @@ class Component:
 	def num_cycles(self): return len(self.pockets)
 	def makePockets(self):
 		self.pockets = [Pocket(packet, self) for packet in findFaces(self.members)]
+		if DEBUG: "***", "Built pockets", self.pockets
 
 	def evaluate(self):
 		if len(self.pockets) == 0: # is a barbell
