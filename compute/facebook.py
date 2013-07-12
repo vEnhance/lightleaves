@@ -2,7 +2,7 @@ import copy
 from misc import DEBUG
 
 def getEdges(vertices):
-	'''Generate the directed eges'''
+	'''Generate the directed edges: form is (vtx, dir)'''
 	edges = []
 	for v in vertices:
 		u1 = v.destinations[1] # right up
@@ -53,12 +53,15 @@ def findFaces(vertices):
 	# walk always to the right
 	v_0 = leafless_vertices[0]
 	v = v_0
-	pocket_list = [v_0]
+
 	direction = 1 # ok since deg v >= 2 and nothing to left, so both 1 and 2 exist
 	# in fact, to prove it...
 	assert (v,1) in edges, "nvm"
 	assert (v,2) in edges, "nvm"
-	dir_memory = {}
+
+	# History is the record of all past vertices and how they were entered
+	# Its entries are ordered pair (v,dir), i.e. edges
+	history = [(v_0, direction)]
 
 	while len(edges) > 0:
 		edges.remove( (v,direction) )
@@ -66,36 +69,37 @@ def findFaces(vertices):
 		# Walk along this directed edge
 		if DEBUG: print "Taking", v, "->",
 		v = v.destinations[direction]
-		if DEBUG: print v
+		next_direction = (0,3,2,1)[direction] # this is the new "ideal" direction
+		# spin around until we find something suitable
+		num_tries = 0
+		while not (v, next_direction) in edges + history:
+			next_direction = (next_direction - 1) % 4
+			num_tries += 1
+			assert num_tries <= 4, "well gg"
+		next_event = (v, next_direction)
 
-		dir_memory[v.name] = direction # Remember which direction we came from
-		if DEBUG: print dir_memory
-
-		if v in pocket_list: 
-			# we found a face!!!
-			i = pocket_list.index(v)
-			cycle_list = pocket_list[i:]
-			if DEBUG: print "Completed cycle", cycle_list
+		if next_event in history: # history repeats itself, especially when you're walking in circles
+			i = history.index(next_event)
+			cycle_list = [event[0] for event in history[i:]]
+			if DEBUG: print "***Completed cycle", cycle_list
 
 			# this is a non-outer face iff the leftmost vertex was entered from below; i.e. entered from a 3 edge
 			leftmost_vertex = min(cycle_list)
-			leftmost_entry_dir = dir_memory[leftmost_vertex.name]
-			assert leftmost_entry_dir in (0,3), (leftmost_vertex, dir_memory)
+			relevant_events = [event for event in history[i:] if event[0] == leftmost_vertex]
+			assert len(relevant_events) == 1, "Zombies appear NOW"
+			leftmost_entry_dir = relevant_events[0][1]
+			assert leftmost_entry_dir in (1,2), history
 
-			if leftmost_entry_dir == 3: yield cycle_list
+			if leftmost_entry_dir == 1: yield cycle_list # this is a bounded face
 			if len(edges) == 0: break # we're done, we're done, we're done!
 
 			v, direction = edges[0] # respawn
-			pocket_list = pocket_list[:i] + [v]
-
+			history = history[:i] + [(v,direction)] # add to history
 
 		else:
-			pocket_list.append(v)
+			direction = next_direction
+			if DEBUG: print v, "currently at", history
+			# if DEBUG: print v, "Edges left:", edges
 			# change direction
-			direction = (0,3,2,1)[direction] # this is the new "ideal" direction
-			num_tries = 0
-			while not (v, direction) in edges:
-				direction = (direction - 1) % 4
-				num_tries += 1
-				assert num_tries <= 4, "well gg"
+			history.append((v,direction))
 
