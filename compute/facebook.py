@@ -78,7 +78,7 @@ def findFaces(vertices):
 			if DEBUG: print "Completed cycle", cycle_list
 
 			# this is a non-outer face iff the leftmost vertex was entered from below; i.e. entered from a 3 edge
-			leftmost_vertex = min(pocket_list)
+			leftmost_vertex = min(cycle_list)
 			leftmost_entry_dir = dir_memory[leftmost_vertex.name]
 			assert leftmost_entry_dir in (0,3), (leftmost_vertex, dir_memory)
 
