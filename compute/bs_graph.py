@@ -87,18 +87,21 @@ class Component:
 		# Sanity checks / edge cases
 		if component == self: return False # reflexive check
 		target = component.members[0] # arbitrary point on target we wish to check
-		if self.divider_tip == self.divider_base: return target > self.divider_tip # if the divider is just a straight line, yay
+		if self.divider_tip == self.divider_base:
+			print "IMMED", self, component, "AS RESULT", int(target > self.divider_tip)
+			return target > self.divider_tip # if the divider is just a straight line, yay
 
 		# count the number of arcs covering
 		num_covers_from_heaven = 0
-		for v in self.members:
+		for v in sorted(self.members):
 			assert v != target, "What have you done?"
 			if v > target: break # all future arcs too far right
 			if v.right_up is None: continue
 			if v.right_up > target: num_covers_from_heaven += 1
 		
 		# do work
-		res = (0 if self.divider_tip > self.divider_base else 1) + num_covers_from_heaven # even = left, odd = right
+		res = (0 if self.divider_tip > target else 1) + num_covers_from_heaven # even = left, odd = right
+		print "RESOLVE", self, component, "AS RESULT", res
 		return (res % 2 == 1)
 
 class Pocket:
