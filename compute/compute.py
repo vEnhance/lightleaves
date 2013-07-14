@@ -99,8 +99,8 @@ def evaluateForm(leaf1, leaf2):
 		elif final_result == 1:
 			pass 
 		else:
-			if d.color == 's': final_result = final_result.subs(s = -alpha_s, t = alpha_t + coeff_x * alpha_s)
-			else: final_result = final_result.subs(t = -alpha_t, s = alpha_s + coeff_y * alpha_t)
+			if d.color == 's': final_result = final_result.subs(s = -alpha_s, t = alpha_t + coeff_y * alpha_s)
+			else: final_result = final_result.subs(t = -alpha_t, s = alpha_s + coeff_x * alpha_t)
 	else:
 		final_result *= prod([c.evaluate() for c in top_level_components]) # the rest of the components, left of all dividers
 	# 
