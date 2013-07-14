@@ -77,10 +77,10 @@ def evaluateForm(leaf1, leaf2):
 	# 
 	# Mark certain pockets/components as attached to an identity line 
 	for c in components:
-		for p in c.pockets[:-1]:
+		for p in c.outer_pockets[:-1]:
 			p.attached = True
-		if c.is_divider and len(c.pockets) > 0:
-			c.pockets[-1].attached = True
+		if c.is_divider and len(c.outer_pockets) > 0:
+			c.outer_pockets[-1].attached = True
 	# 
 	# Split into regions by dividers and evaluate each region 
 	final_result = 1

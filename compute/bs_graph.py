@@ -61,24 +61,34 @@ class Component:
 		self.left_break = []
 		self.right_break = []
 		self.members = []
-		self.pockets = []
+		self.outer_pockets = []
+		self.all_pockets = []
 	def __repr__(self):
 		return "c_%s = %s" %(self.name, self.members)
 	@property
 	def color(self):
 		return self.members[0].color
-	@property
-	def num_cycles(self): return len(self.pockets)
 	def makePockets(self):
-		self.pockets = [Pocket(packet, self) for packet in findFaces(self.members)]
-		if DEBUG: "***", "Built pockets", self.pockets
+		self.all_pockets = [Pocket(packet, self) for packet in findFaces(self.members)]
+		if DEBUG: "***", "Built pockets", self.all_pockets
+		for p in self.all_pockets:
+			m_arc = p.major_arc
+			flip_arc = (m_arc[1], m_arc[0])
+			for p2 in self.all_pockets:
+				if flip_arc in p2.arcs and p != p2:
+					p2.embedded_pockets.append(p)
+					p.attached = True
+					break
+			else:
+				self.outer_pockets.append(p)
+			
 
 	def evaluate(self):
-		if len(self.pockets) == 0: # is a barbell
+		if len(self.all_pockets) == 0: # is a barbell
 			if self.is_divider: return 1
 			else: return alpha_s if self.color == 's' else alpha_t
 		else:
-			return prod([pocket.evaluate() for pocket in self.pockets])
+			return prod([pocket.evaluate() for pocket in self.outer_pockets])
 
 	def has_on_right(self, component):
 		'''Returns True if the component is strictly to the right of this divider.  Throws an AssertionError if self.is_divider is False'''
@@ -110,27 +120,53 @@ class Pocket:
 		self.vertices = vertices
 		self.parent = parent # should be a component
 		self.contents = []
+		self.embedded_pockets = []
+		self.arcs = [(self.vertices[i], self.vertices[i+1]) for i in range(len(self.vertices)-1)]
+		self.arcs.append((self.vertices[-1], self.vertices[0]))
+		
 	def __repr__(self):
 		return "%s in c_%s" %(self.vertices, self.parent.name)
 	@property
-	def color(self):
-		return self.parent.color
+	def color(self): return self.parent.color
+	@property
+	def left(self): return min(self.vertices)
+	@property
+	def right(self): return max(self.vertices)
+
+	@property
+	def major_arc(self):
+		if len(self.arcs) == 2:
+			assert self.arcs[0][1] == self.arcs[1][0] and self.arcs[0][0] == self.arcs[1][1]
+			return self.arcs[1]
+		else:
+			return sorted(self.arcs, key = lambda arc: max(arc).name-min(arc).name)[-1]
+
 	def feed(self, c):
 		for component in self.contents:
-			for pocket in component.pockets:
+			for pocket in component.all_pockets:
 				if pocket.contains(c):
 					pocket.feed(c)
 					return
+		for pocket in self.embedded_pockets:
+			if pocket.contains(c):
+				pocket.feed(c)
+				return
 		self.contents.append(c)
 	def evaluate(self):
 		if len(self.contents) == 0: return 0
 		contents_expr = prod([thing.evaluate() for thing in self.contents])
 		if contents_expr == 0: return 0
 		contents_poly = expand(factor(contents_expr)) # expand(factor(...)) casts to polynomial
-		result = 0
+		# Evaluate the contents
+		contents_result = 0
 		for coeff, monomial in list(contents_poly):
-			result += coeff * self.breakPolynomial(monomial)
-		return result
+			contents_result += coeff * self.breakPolynomial(monomial)
+		# Multiply by any embedded pockets
+		if len(self.embedded_pockets) != 0:
+			x = prod([pocket.evaluate() for pocket in self.embedded_pockets])
+		else: 
+			x = 1
+		return contents_result * x
 	def contains(self, component):
 		'''Returns True if the component is contained in this pocket'''
 		if component == self: return False # reflexive check
@@ -140,12 +176,8 @@ class Pocket:
 		else:
 			num_covers_from_heaven = 0 # number of arcs shielding it from the sky
 			num_covers_from_hell = 0 # number of arcs shielding it from below
-			for i in range(len(self.vertices)):
-				# get the pair of vertices delimited by the arc
-				if i != len(self.vertices) - 1:
-					a,b = sorted([self.vertices[i], self.vertices[i+1]])
-				else:
-					a,b = sorted([self.vertices[-1], self.vertices[0]])
+			for arc in self.arcs:
+				a,b = sorted(arc) # a -> b is an arc from left to right
 				if a < target and target < b:
 					if a.right_up == b: num_covers_from_heaven += 1
 					elif a.right_down == b: num_covers_from_hell += 1
@@ -170,6 +202,7 @@ class Pocket:
 class Universe(Pocket):
 	def __init__(self):
 		self.contents = []
+		self.embedded_pockets = []
 	def __repr__(self):
 		return str(self.contents)
 	def contains(self, component):

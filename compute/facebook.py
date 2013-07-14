@@ -90,7 +90,8 @@ def findFaces(vertices):
 			leftmost_entry_dir = relevant_events[0][1]
 			assert leftmost_entry_dir in (1,2), history
 
-			if leftmost_entry_dir == 1: yield cycle_list # this is a bounded face
+			if leftmost_entry_dir == 1:
+				yield cycle_list # this is a non-outer bounded face
 			if len(edges) == 0: break # we're done, we're done, we're done!
 
 			v, direction = edges[0] # respawn
