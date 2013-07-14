@@ -72,15 +72,22 @@ class Component:
 		self.all_pockets = [Pocket(packet, self) for packet in findFaces(self.members)]
 		if DEBUG: "***", "Built pockets", self.all_pockets
 		for p in self.all_pockets:
-			m_arc = p.major_arc
-			flip_arc = (m_arc[1], m_arc[0])
-			for p2 in self.all_pockets:
-				if flip_arc in p2.arcs and p != p2:
-					p2.embedded_pockets.append(p)
-					p.attached = True
+			# Check to see if ALL arcs are part of another bounded face
+			for arc in p.arcs:
+				flip_arc = (arc[1], arc[0])
+				for p2 in self.all_pockets:
+					if flip_arc in p2.arcs and p != p2:
+						# This one is, so darn, keep looking for arcs
+						break
+				else:
+					# This one is an exit
+					self.outer_pockets.append(p)
 					break
 			else:
-				self.outer_pockets.append(p)
+				# OK, this pocket is completely surrounded
+				# Take the most recent p2 and append it, I guess
+				p2.embedded_pockets.append(p)
+				p.attached = True
 			
 
 	def evaluate(self):
@@ -132,14 +139,6 @@ class Pocket:
 	def left(self): return min(self.vertices)
 	@property
 	def right(self): return max(self.vertices)
-
-	@property
-	def major_arc(self):
-		if len(self.arcs) == 2:
-			assert self.arcs[0][1] == self.arcs[1][0] and self.arcs[0][0] == self.arcs[1][1]
-			return self.arcs[1]
-		else:
-			return sorted(self.arcs, key = lambda arc: max(arc).name-min(arc).name)[-1]
 
 	def feed(self, c):
 		for component in self.contents:
