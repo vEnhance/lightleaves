@@ -4,3 +4,4 @@ data.in
 *.pyc
 texput.*
 out.*
+result/*
