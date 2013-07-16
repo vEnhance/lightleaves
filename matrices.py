@@ -1,5 +1,6 @@
 from lightleaf import LightLeaf
 from compute import evaluateForm
+# from compute.alg import quantize
 
 import itertools
 import sys
@@ -34,7 +35,7 @@ for bit_seq in itertools.product("01", repeat=n):
 	all_maps_by_top[m.top] = all_maps_by_top.get(m.top, []) + [m]
 
 print r"""\documentclass[11pt]{scrartcl}
-\usepackage[left=1.414cm,right=1.414cm,top=2cm,bottom=3cm]{geometry}
+\usepackage[left=1cm,right=1cm,top=2cm,bottom=3cm]{geometry}
 \usepackage{amsmath,amsthm,amssymb}
 \usepackage{longtable}
 \usepackage{fancyhdr}
@@ -68,7 +69,7 @@ for top, maps in sorted(all_maps_by_top.iteritems(), key = lambda pair: len(pair
 	print r"\subsection*{There are a total of " + str(len(maps)) + r" map(s).}"
 	for columns in chunks(maps, L):
 		l = len(columns)
-		width = 2.24
+		width = 2.48
 		print r"\begin{longtable}" + "{|l|" + ("|p{%.2fcm}" %(width)) * l + "|}" # start the table
 
 		print "\hline"
