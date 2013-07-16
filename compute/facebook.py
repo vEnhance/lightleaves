@@ -1,5 +1,5 @@
 import copy
-from misc import DEBUG
+from alg import DEBUG
 
 def getEdges(vertices):
 	'''Generate the directed edges: form is (vtx, dir)'''

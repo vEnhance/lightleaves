@@ -1,22 +1,12 @@
-from sage.all import factor, expand
 from facebook import findFaces
-from misc import alpha_s, alpha_t, coeff_x, coeff_y
-from misc import prod
-from misc import DEBUG
+from alg import alpha_s, alpha_t, demazure_s, demazure_t
+from alg import prod
+from alg import DEBUG
 
 def divides(f, g):
 	'''Returns f | g'''
-	return (f in [ex[0] for ex in list(factor(g))])
-def getVars(color):
-	if color == 's': 
-		same = alpha_s
-		diff = alpha_t
-		coeff = coeff_y
-	else: 
-		same = alpha_t
-		diff = alpha_s
-		coeff = coeff_x
-	return same, diff, coeff
+	print f,g
+	return f.quo_rem(g)[1] == 0
 
 class Vertex:
 	def __init__(self, i, color):
@@ -153,19 +143,15 @@ class Pocket:
 		self.contents.append(c)
 	def evaluate(self):
 		if len(self.contents) == 0: return 0
-		contents_expr = prod([thing.evaluate() for thing in self.contents])
-		if contents_expr == 0: return 0
-		contents_poly = expand(factor(contents_expr)) # expand(factor(...)) casts to polynomial
+		f = prod([thing.evaluate() for thing in self.contents])
+		if f == 0: return 0
 		# Evaluate the contents
-		contents_result = 0
-		for coeff, monomial in list(contents_poly):
-			contents_result += coeff * self.breakPolynomial(monomial)
+		res = demazure_s(f) if self.color == 's' else demazure_t(f)
+		if self.attached is False:
+			res *= alpha_s if self.color == 's' else alpha_t
 		# Multiply by any embedded pockets
-		if len(self.embedded_pockets) != 0:
-			x = prod([pocket.evaluate() for pocket in self.embedded_pockets])
-		else: 
-			x = 1
-		return contents_result * x
+		return res * prod([pocket.evaluate() for pocket in self.embedded_pockets])
+
 	def contains(self, component):
 		'''Returns True if the component is contained in this pocket'''
 		if component == self: return False # reflexive check
@@ -183,20 +169,22 @@ class Pocket:
 					else: assert 0, str(a) + " " + str(b)
 			assert num_covers_from_heaven % 2 == num_covers_from_hell % 2, "well then"
 		return (num_covers_from_heaven % 2 == 1)
-	def breakPolynomial(self, monomial):
-		'''Returns the result of breaking a monomial out of a loop with some color'''
-		same, diff, coeff = getVars(self.color)
 
-		# If barbell of same color
-		if divides(same, monomial):
-			if self.attached: return 2 * monomial/same - same * self.breakPolynomial(monomial / same)
-			else: return 2 * monomial - same * self.breakPolynomial(monomial / same)
-		elif divides(diff, monomial):
-			if self.attached:
-				return (-coeff) * monomial / diff + (diff + coeff * same) * self.breakPolynomial(monomial / diff)
-			else:
-				return (-coeff) * monomial / diff * same + (diff + coeff * same) * self.breakPolynomial(monomial / diff)
-		return 0
+#	def breakPolynomial(self, monomial):
+#		'''Returns the result of breaking a monomial out of a loop with some color'''
+#
+#		# If barbell of same color
+#		if divides(same, monomial):
+#			if self.attached:
+#				return 2 * monomial/same - same * self.breakPolynomial(monomial / same)
+#			else:
+#				return 2 * monomial - same * self.breakPolynomial(monomial / same)
+#		elif divides(diff, monomial):
+#			if self.attached:
+#				return (-coeff) * monomial / diff + (diff + coeff * same) * self.breakPolynomial(monomial / diff)
+#			else:
+#				return (-coeff) * monomial / diff * same + (diff + coeff * same) * self.breakPolynomial(monomial / diff)
+#		return 0
 
 class Universe(Pocket):
 	def __init__(self):

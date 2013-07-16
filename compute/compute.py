@@ -1,7 +1,7 @@
 from bs_graph import Component, Vertex, Universe
-from misc import alpha_s, alpha_t, coeff_x, coeff_y
-from misc import prod
-from misc import DEBUG
+from alg import action_s, action_t
+from alg import prod
+from alg import DEBUG
 import copy
 
 def getDirection(u,v):
@@ -99,8 +99,8 @@ def evaluateForm(leaf1, leaf2):
 		elif final_result == 1:
 			pass 
 		else:
-			if d.color == 's': final_result = final_result.subs(s = -alpha_s, t = alpha_t + coeff_y * alpha_s)
-			else: final_result = final_result.subs(t = -alpha_t, s = alpha_s + coeff_x * alpha_t)
+			if d.color == 's': final_result = action_s(final_result)
+			else: final_result = action_t(final_result)
 	else:
 		final_result *= prod([c.evaluate() for c in top_level_components]) # the rest of the components, left of all dividers
 	# 
