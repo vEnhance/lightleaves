@@ -67,6 +67,7 @@ def evaluateForm(leaf1, leaf2):
 			c.is_divider = True
 			c.divider_tip = dividers_top[i]
 			c.divider_base = dividers_bottom[i]
+			c.setDividerPath()
 			if DEBUG: print "Assign", c, c.divider_tip, c.divider_base
 
 	# 
@@ -90,7 +91,7 @@ def evaluateForm(leaf1, leaf2):
 	for d in sorted(dividers, key = lambda d: -d.divider_tip.name):
 		# Evaluate polynomials to the right of the divider
 		for c in top_level_components:
-			if d.has_on_right(c):
+			if d.hasOnRight(c):
 				final_result *= c.evaluate()
 				top_level_components.remove(c)
 		# Apply barbell forcing rules modulo lower terms

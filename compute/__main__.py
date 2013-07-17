@@ -2,6 +2,7 @@ import sys
 sys.path.append(".")
 from lightleaf import LightLeaf
 from compute import evaluateForm
+from alg import quantize
 
 if __name__ == "__main__":
 	letters = sys.stdin.readline().strip()
@@ -16,4 +17,4 @@ if __name__ == "__main__":
 	leaf2 = LightLeaf(bit2, letters)
 	res = evaluateForm(leaf1, leaf2)
 
-	print res
+	print quantize(res)

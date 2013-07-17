@@ -5,7 +5,6 @@ from alg import DEBUG
 
 def divides(f, g):
 	'''Returns f | g'''
-	print f,g
 	return f.quo_rem(g)[1] == 0
 
 class Vertex:
@@ -87,7 +86,23 @@ class Component:
 		else:
 			return prod([pocket.evaluate() for pocket in self.outer_pockets])
 
-	def has_on_right(self, component):
+	def setDividerPath(self):
+		'''Returns a path from divider_tip to divider_base as a bunch of vertices'''
+		path = []
+		def search(v):
+			path.append(v)
+			if v == self.divider_tip: return 1
+			for n in v.neighbors:
+				if n in path: continue
+				if search(n) == 1: return 1
+			assert path[-1] == v
+			path.pop()
+			return 0
+		search(self.divider_base)
+		assert len(path) > 0
+		self.divider_path = path
+
+	def hasOnRight(self, component):
 		'''Returns True if the component is strictly to the right of this divider.  Throws an AssertionError if self.is_divider is False'''
 		assert self.is_divider, str(self) + " isn't a divider"
 
@@ -99,13 +114,13 @@ class Component:
 			return target > self.divider_tip # if the divider is just a straight line, yay
 
 		# count the number of arcs covering
+		divider_path = self.divider_path
 		num_covers_from_heaven = 0
-		for v in sorted(self.members):
-			assert v != target, "What have you done?"
-			if v > target: break # all future arcs too far right
-			if v.right_up is None: continue
-			if v.right_up > target: num_covers_from_heaven += 1
-		
+		for i in xrange(len(divider_path)-1):
+			a,b = sorted(divider_path[i:i+2])
+			if a.right_up == b and a < target and b > target:
+				num_covers_from_heaven += 1
+
 		# do work
 		res = (0 if self.divider_tip > target else 1) + num_covers_from_heaven # even = left, odd = right
 		if DEBUG: print "RESOLVE", self, component, "AS RESULT", res
