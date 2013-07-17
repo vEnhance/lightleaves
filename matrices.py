@@ -1,23 +1,32 @@
 from lightleaf import LightLeaf
 from compute import evaluateForm
-# from compute.alg import quantize
+from compute.alg import quantize
 
 import itertools
 import sys
 
 L = 6
 
-
 letters = sys.stdin.readline().strip()
 n = len(letters)
 
+cache = {}
 def prettyEval(leaf1, leaf2):
 	'''Return the output of evaluateForm in TeX with s -> \\alpha_s, etc.'''
-	res = str(evaluateForm(leaf1, leaf2))
+	#" Check if already done
+	key = (leaf1.bits, leaf2.bits)
+	if cache.has_key(key): return cache[key]
+
+	# res = str(evaluateForm(leaf1, leaf2))
+	res = quantize(evaluateForm(leaf1, leaf2))
 	if str(res) == '0': return ''
 	the_expr = str(res).replace('s', r'\alpha_s').replace('t', r'\alpha_t').replace("*","") 
 	the_expr.replace("+", "+\\nobreak ").replace("-", "-\\nobreak ")
-	return "$" + the_expr + "$"
+
+	# Save and spit out final result
+	final_res =  "$" + the_expr + "$"
+	cache[key] = final_res
+	return final_res
 
 def chunks(seq, l):
 	n = len(seq)
@@ -92,7 +101,8 @@ for top, maps in sorted(all_maps_by_top.iteritems(), key = lambda pair: len(pair
 			print leaf_to_key(a)
 			for b in columns:
 				try:
-					print "&", prettyEval(a,b),
+					print "&", prettyEval(a,b), "%", a, "x", b
+					assert prettyEval(a,b) == prettyEval(b,a), "lolno"
 				except AssertionError:
 					assert False, str( [a,b] )
 			print r"\\"

@@ -1,6 +1,6 @@
-from sage.all import QQ, PolynomialRing, FractionField, factor
+from sage.all import QQ, PolynomialRing
 
-Z, (x,y) = FractionField(PolynomialRing(QQ, 2, 'xy')).objgens()
+Z, (x,y) = PolynomialRing(QQ, 2, 'xy').objgens()
 R, (s,t) = PolynomialRing(Z, 2, 'st').objgens()
 DEBUG = False # debug prints
 
@@ -10,15 +10,15 @@ def prod(items):
 	for i in items: result *= i
 	return result
 
-def quotient(f,g): 
-	res = f.quo_rem(g)
-	assert res[1] == 0
-	return res[0]
+
+def div_s(f): return sum([s**(exp[0]-1) * t**(exp[1]) * coeff for exp, coeff in f.dict().iteritems()])
+def div_t(f): return sum([s**(exp[0]) * t**(exp[1]-1) * coeff for exp, coeff in f.dict().iteritems()])
 
 def action_s(f): return f.subs(s=-s, t=t + x*s)
 def action_t(f): return f.subs(t=-t, s=s + y*t)
-def demazure_s(f): return quotient(f-action_s(f), s)
-def demazure_t(f): return quotient(f-action_t(f), t)
+def demazure_s(f): return div_s(f-action_s(f))
+def demazure_t(f): return div_t(f-action_t(f))
+
 
 # Pre-computed: first several quantum numbers
 QUANTUM_X = [0,1,x]
@@ -29,29 +29,22 @@ def computeQuantum(N):
 	for n in range(len(QUANTUM_X), N):
 		QUANTUM_X.append(x*QUANTUM_Y[n-1] - QUANTUM_X[n-2])
 		QUANTUM_Y.append(y*QUANTUM_X[n-1] - QUANTUM_Y[n-2])
-computeQuantum(9) # initial things
+computeQuantum(15) # initial things
 
-def getQuantum(q):
-	if q == 1: return ''
-	if q == -1: return '-'
-	if q in QUANTUM_X:
-		i = QUANTUM_X.index(q)
-		if i % 2 == 1: return "[%d]" %i
-		return "[%d]_x" % QUANTUM_X.index(q)
-	if q in QUANTUM_Y:
-		return "[%d]_y" % QUANTUM_Y.index(q)
-
-	q = -q # lol so bad
-	if q in QUANTUM_X:
-		i = QUANTUM_X.index(q)
-		if i % 2 == 1: return "-[%d]" %i
-		return "-[%d]_x" % QUANTUM_X.index(q)
-	if q in QUANTUM_Y:
-		return "-[%d]_y" % QUANTUM_Y.index(q)
-
-	q = -q
-	return "(%s)" %q
-
+def getQuantum(P):
+	if P == 1: return ''
+	if P == -1: return '-'
+	d = P.degree() # maximum degree
+	for i in xrange(d+2,1,-1):
+		if i % 2 == 1:
+			quo, rem = P.quo_rem(QUANTUM_X[i])
+			if rem == 0: return getQuantum(quo) + '[%d]' %i
+		else:
+			quo, rem = P.quo_rem(QUANTUM_Y[i])
+			if rem == 0: return getQuantum(quo) + '[%d]_y' %i
+			quo, rem = P.quo_rem(QUANTUM_X[i])
+			if rem == 0: return getQuantum(quo) + '[%d]_x' %i
+	return str(P)
 
 def quantize(f):
 	if type(f) == type(0): return f
