@@ -20,6 +20,10 @@ def getEdges(vertices):
 	return edges
 
 def findFaces(vertices):
+	if DEBUG is True:
+		print
+		print "="*20
+		print "CALLING makePockets on", vertices
 	# kill all vertices with degree 1.  RECURSIVELY!!!!
 	new_degrees = {} # v.name -> temp degree
 	for v in vertices: new_degrees[v.name] = v.degree
@@ -30,24 +34,25 @@ def findFaces(vertices):
 			yield [v,u]
 			new_degrees[u.name] -= 1
 			new_degrees[v.name] -= 1
+	if DEBUG: print "Degrees are", new_degrees, "after removing"
 	# kill a bunch of extraneous vertices
 	leafless_vertices = copy.copy(vertices) # to modify
 	to_kill = [v for v in leafless_vertices if new_degrees[v.name] <= 1]
 	while len(to_kill) > 0:
+		if DEBUG: print "On the chopping block:", to_kill
 		for v in to_kill:
 			leafless_vertices.remove(v)
-			for u in v.neighbors:
-				new_degrees[u.name] -= 1
+			for u_name in set([u.name for u in v.neighbors]):
+				new_degrees[u_name] -= 1
 		to_kill = [v for v in leafless_vertices if new_degrees[v.name] <= 1]
+		if DEBUG: print "Degrees are now", new_degrees
 	# Generate directed edges
 	edges = getEdges(leafless_vertices)
 
-	if DEBUG is True:
-		print "CALLING makePockets"
-		print "Initial edges", edges
 
 	if len(leafless_vertices) == 0:
 		# is a barbell now
+		if DEBUG is True: print vertices, "is a barbell"
 		return
 
 	# walk always to the right
@@ -62,9 +67,10 @@ def findFaces(vertices):
 	# History is the record of all past vertices and how they were entered
 	# Its entries are ordered pair (v,dir), i.e. edges
 	history = [(v_0, direction)]
+	edges_left = copy.copy(edges)
 
-	while len(edges) > 0:
-		edges.remove( (v,direction) )
+	while len(edges_left) > 0:
+		edges_left.remove( (v,direction) )
 
 		# Walk along this directed edge
 		if DEBUG: print "Taking", v, "->",
@@ -72,16 +78,17 @@ def findFaces(vertices):
 		next_direction = (0,3,2,1)[direction] # this is the new "ideal" direction
 		# spin around until we find something suitable
 		num_tries = 0
-		while not (v, next_direction) in edges + history:
+		while not (v, next_direction) in edges:
 			next_direction = (next_direction - 1) % 4
 			num_tries += 1
 			assert num_tries <= 4, "well gg"
 		next_event = (v, next_direction)
+		assert next_event in edges_left or next_event in history, (next_event, edges_left)
 
 		if next_event in history: # history repeats itself, especially when you're walking in circles
 			i = history.index(next_event)
 			cycle_list = [event[0] for event in history[i:]]
-			if DEBUG: print "***Completed cycle", cycle_list
+			if DEBUG is True: print "***Completed cycle", cycle_list
 
 			# this is a non-outer face iff the leftmost vertex was entered from below; i.e. entered from a 3 edge
 			leftmost_vertex = min(cycle_list)
@@ -92,9 +99,9 @@ def findFaces(vertices):
 
 			if leftmost_entry_dir == 1:
 				yield cycle_list # this is a non-outer bounded face
-			if len(edges) == 0: break # we're done, we're done, we're done!
+			if len(edges_left) == 0: break # we're done, we're done, we're done!
 
-			v, direction = edges[0] # respawn
+			v, direction = edges_left[0] # respawn
 			history = history[:i] + [(v,direction)] # add to history
 
 		else:

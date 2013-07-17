@@ -59,7 +59,10 @@ class Component:
 		return self.members[0].color
 	def makePockets(self):
 		self.all_pockets = [Pocket(packet, self) for packet in findFaces(self.members)]
-		if DEBUG: "***", "Built pockets", self.all_pockets
+		if DEBUG is True:
+			print "***", "Built pockets", self.all_pockets
+			print "="*20
+			print
 		for p in self.all_pockets:
 			# Check to see if ALL arcs are part of another bounded face
 			for arc in p.arcs:
