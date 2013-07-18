@@ -5,3 +5,4 @@ data.in
 texput.*
 out.*
 result/*
+reversed/*

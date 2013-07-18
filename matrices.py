@@ -58,22 +58,9 @@ print r"""\documentclass[11pt]{scrartcl}
 \maketitle
 """
 
-def leaf_to_key(leaf):
-	return leaf.bits
-	# return str_to_key(leaf.bits)
-def str_to_key(bits):
-	n = len(bits)
-	res = '$\\ast$'
-	counter = [0,0]
-	for i in range(n):
-		k = i % 2
-		if bits[i] == '1': counter[k] = 1 - counter[k]  # flip bit
-		res += str(counter[k])
-	return res
-
 
 for top, maps in sorted(all_maps_by_top.iteritems(), key = lambda pair: len(pair[1])):
-	maps.sort(key = leaf_to_key)
+	maps.sort(key = lambda m : m.bits[::-1])
 	print r"\section{" + letters + r" $\to$ " + (top if top != "" else r"$\varnothing$") + "}" # create a section for this top
 	print r"\subsection*{There are a total of " + str(len(maps)) + r" map(s).}"
 	for columns in chunks(maps, L):
@@ -83,12 +70,12 @@ for top, maps in sorted(all_maps_by_top.iteritems(), key = lambda pair: len(pair
 
 		print "\hline"
 		print top, '&',
-		print ' & '.join([leaf_to_key(m) for m in columns]),
+		print ' & '.join([m.bits for m in columns]),
 		print r"\\ \hline"
 		print r"\endfirsthead"
 
 		print top, '&',
-		print ' & '.join([leaf_to_key(m) for m in columns]),
+		print ' & '.join([m.bits for m in columns]),
 		print r"\\ \hline"
 		print r"\endhead"
 
@@ -98,7 +85,7 @@ for top, maps in sorted(all_maps_by_top.iteritems(), key = lambda pair: len(pair
 		print r"\endlastfoot"
 
 		for a in maps:
-			print leaf_to_key(a)
+			print a
 			for b in columns:
 				try:
 					print "&", prettyEval(a,b), "%", a, "x", b
