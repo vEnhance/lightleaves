@@ -48,6 +48,7 @@ def getQuantum(P):
 
 def quantize(f):
 	if type(f) == type(0): return f
+	if f == "INCOMPATIBLE": return f
 	terms = [getQuantum(f.monomial_coefficient(m)) + (str(m) if m != 1 else '') for m in f.monomials()]
 	return '+'.join(terms)
 
