@@ -44,7 +44,8 @@ class LightLeaf():
 		out = ""
 		out += "size(10cm);\n"
 		out += "real h = 0.7;\n"
-		out += "pen s = blue, t = red;\n"
+		out += "pen s = blue, t = red + dashed + 0.6;\n"
+		out += "pen dot_s = blue, dot_t = red;\n"
 		out += "int n = %d;\n" %len(self.bits)
 		return out
 	def drawLines(self, pic = "currentpicture"):
@@ -60,14 +61,14 @@ class LightLeaf():
 				% {'pic' : pic, 'start': start, 'end': end, 'diff': diff, 'pen': pen}
 		for x in self.stubs:
 			out += "draw(%s, (%d,0)--(%d,h), %s);\n" %(pic, x[1],x[1],x[0])
-			out += "dot(%s, (%d,h), %s);\n" %(pic, x[1],x[0])
+			out += "dot(%s, (%d,h), dot_%s);\n" %(pic, x[1],x[0])
 		for x in self.nodes_open:
 			out += "draw(%s,(%d,0)--(%d,%d*h), %s);\n" %(pic, x[1], x[1], max_height + 1, x[0])
 		starting_points = [e[1] for e in self.edges] + [x[1] for x in self.nodes_open]
 		ending_points = [e[2] for e in self.edges] 
 		for x in starting_points:
 			if x in ending_points:
-				out += "dot(%s, (%d, h/2), %s);\n" %(pic, x, self.letters[x])
+				out += "dot(%s, (%d, h/2), dot_%s);\n" %(pic, x, self.letters[x])
 		return out
 	def drawLabels(self, pic = "currentpicture"):
 		out = ""
