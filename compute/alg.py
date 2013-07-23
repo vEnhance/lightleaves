@@ -44,7 +44,7 @@ def getQuantum(P):
 			if rem == 0: return getQuantum(quo) + '[%d]_y' %i
 			quo, rem = P.quo_rem(QUANTUM_X[i])
 			if rem == 0: return getQuantum(quo) + '[%d]_x' %i
-	return str(P)
+	return "(" + str(P) + ")"
 
 def quantize(f):
 	if type(f) == type(0): return f
